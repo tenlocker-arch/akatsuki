@@ -1,0 +1,622 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>アカツキ</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Shippori+Mincho:wght@400;600;800&family=Cormorant+Garamond:ital,wght@0,300;0,400;1,300&family=Noto+Serif+JP:wght@300;400;600&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --bg: #03060e;
+    --gold: #d4a84b;
+    --gold-light: #f0d080;
+    --text: #f5ead8;
+    --text-sub: #8fa0b8;
+    --border: rgba(212,168,75,0.22);
+  }
+  html, body { width:100%; min-height:100%; background:var(--bg); color:var(--text); font-family:'Noto Serif JP',serif; overflow-x:hidden; }
+
+  #stars { position:fixed; inset:0; z-index:0; pointer-events:none; }
+  .horizon { position:fixed; bottom:0; left:0; right:0; height:35vh; background:radial-gradient(ellipse at 50% 110%, rgba(190,110,20,0.22) 0%, rgba(120,60,10,0.1) 45%, transparent 100%); z-index:0; pointer-events:none; }
+
+  /* ── SCREEN管理 ── */
+  .screen { display:none; }
+  .screen.active { display:block; }
+
+  /* ── 共通wrapper ── */
+  .wrapper { position:relative; z-index:1; min-height:100vh; display:flex; flex-direction:column; align-items:center; padding:0 28px 100px; max-width:480px; margin:0 auto; }
+
+  /* ── トップバー ── */
+  .topbar { width:100%; display:flex; justify-content:space-between; align-items:center; padding:32px 0 0; opacity:0; animation:fadeUp 0.8s ease 0.1s forwards; }
+  .topbar span { font-family:'Cormorant Garamond',serif; font-size:12px; letter-spacing:0.35em; color:var(--text-sub); text-transform:uppercase; }
+  .topbar .gem { width:5px; height:5px; border-radius:50%; background:var(--gold); box-shadow:0 0 8px var(--gold); }
+
+  /* ── ロゴ ── */
+  .hero { margin-top:10vh; text-align:center; opacity:0; animation:fadeUp 1s ease 0.4s forwards; }
+  .logo { font-family:'Shippori Mincho',serif; font-weight:800; font-size:clamp(44px,11vw,84px); color:#fff; line-height:1; letter-spacing:0.15em; white-space:nowrap; text-shadow:0 0 80px rgba(212,168,75,0.2),0 0 160px rgba(190,110,20,0.1); }
+  .logo-sub { font-family:'Cormorant Garamond',serif; font-size:12px; font-weight:300; letter-spacing:0.7em; color:var(--gold); margin-top:10px; display:block; text-transform:uppercase; }
+
+  .vline { width:1px; height:52px; background:linear-gradient(to bottom,transparent,var(--gold),transparent); margin:32px auto; opacity:0; animation:fadeIn 1s ease 0.9s forwards; }
+
+  .catch { text-align:center; opacity:0; animation:fadeUp 0.9s ease 1.1s forwards; }
+  .catch-main { font-family:'Shippori Mincho',serif; font-size:clamp(16px,4.5vw,20px); font-weight:600; line-height:2.0; letter-spacing:0.08em; color:var(--text); }
+  .catch-main em { font-style:normal; color:var(--gold-light); }
+
+  .badges { display:flex; flex-wrap:wrap; gap:8px; justify-content:center; margin:32px auto 0; opacity:0; animation:fadeUp 0.9s ease 1.4s forwards; }
+  .badge { font-family:'Noto Serif JP',serif; font-size:12px; letter-spacing:0.1em; color:var(--gold); border:1px solid var(--border); padding:6px 14px; background:rgba(212,168,75,0.05); }
+
+  /* ── カード ── */
+  .card { width:100%; margin-top:52px; border:1px solid var(--border); background:rgba(6,14,28,0.85); backdrop-filter:blur(16px); padding:40px 32px 36px; position:relative; opacity:0; animation:fadeUp 0.9s ease 1.7s forwards; }
+  .card::before { content:''; position:absolute; top:-1px; left:-1px; width:16px; height:16px; border-top:1px solid var(--gold); border-left:1px solid var(--gold); }
+  .card::after  { content:''; position:absolute; bottom:-1px; right:-1px; width:16px; height:16px; border-bottom:1px solid var(--gold); border-right:1px solid var(--gold); }
+  .card-title { font-family:'Cormorant Garamond',serif; font-size:11px; letter-spacing:0.45em; color:var(--gold); text-transform:uppercase; margin-bottom:32px; display:flex; align-items:center; gap:14px; }
+  .card-title::after { content:''; flex:1; height:1px; background:var(--border); }
+
+  .field { margin-bottom:28px; }
+  .field label { display:block; font-size:15px; letter-spacing:0.2em; color:#c8d8e8; margin-bottom:12px; font-family:'Noto Serif JP',serif; }
+  .field input { width:100%; background:transparent; border:none; border-bottom:1px solid rgba(212,168,75,0.4); padding:12px 0; color:#fff; font-family:'Noto Serif JP',serif; font-size:18px; outline:none; transition:border-color 0.3s; }
+  .field input:focus { border-bottom-color:var(--gold); }
+  .field input::placeholder { color:rgba(180,200,220,0.3); font-size:16px; }
+
+  .gender-row { display:flex; gap:12px; }
+  .gender-btn { flex:1; padding:15px; background:rgba(255,255,255,0.04); border:1px solid rgba(212,168,75,0.35); color:#c8d8e8; font-family:'Noto Serif JP',serif; font-size:16px; letter-spacing:0.3em; cursor:pointer; transition:all 0.25s; }
+  .gender-btn.active { background:rgba(212,168,75,0.15); border-color:var(--gold); color:#fff; }
+
+  .section-label { font-size:15px; letter-spacing:0.2em; color:#c8d8e8; margin-bottom:16px; display:block; font-family:'Noto Serif JP',serif; }
+  .themes { display:flex; flex-wrap:wrap; gap:10px; margin-bottom:36px; }
+  .theme-btn { padding:11px 20px; background:rgba(255,255,255,0.04); border:1px solid rgba(212,168,75,0.3); color:#c8d8e8; font-family:'Noto Serif JP',serif; font-size:15px; cursor:pointer; transition:all 0.2s; }
+  .theme-btn.on { border-color:var(--gold); color:#fff; background:rgba(212,168,75,0.12); }
+
+  .btn-main { width:100%; padding:22px; background:rgba(212,168,75,0.08); border:1px solid var(--gold); color:#fff; font-family:'Shippori Mincho',serif; font-size:17px; font-weight:600; letter-spacing:0.6em; cursor:pointer; transition:all 0.35s; position:relative; overflow:hidden; }
+  .btn-main::before { content:''; position:absolute; inset:0; background:rgba(212,168,75,0.15); transform:scaleX(0); transform-origin:left; transition:transform 0.4s ease; }
+  .btn-main:hover::before { transform:scaleX(1); }
+  .btn-main:hover { box-shadow:0 0 40px rgba(212,168,75,0.25); }
+  .btn-main:disabled { opacity:0.5; cursor:not-allowed; }
+
+  .api-area { margin-top:20px; text-align:center; }
+  .api-toggle-btn { background:none; border:none; color:#8fa0b8; font-family:'Noto Serif JP',serif; font-size:13px; letter-spacing:0.15em; cursor:pointer; opacity:0.85; text-decoration:underline; text-underline-offset:4px; }
+  .api-box { display:none; margin-top:16px; }
+  .api-box input { width:100%; background:transparent; border:1px solid var(--border); padding:12px 16px; color:#c8d8e8; font-family:'Cormorant Garamond',serif; font-size:14px; outline:none; transition:border-color 0.3s; }
+  .api-box input:focus { border-color:var(--gold); }
+  .api-note { margin-top:8px; font-size:11px; color:var(--text-sub); opacity:0.6; line-height:1.7; }
+
+  .err-msg { color:#e07070; font-size:13px; margin-top:12px; text-align:center; letter-spacing:0.1em; display:none; }
+
+  /* ── ローディング画面 ── */
+  #screen-loading .wrapper { justify-content:center; min-height:100vh; }
+  .loading-inner { text-align:center; }
+  .loading-title { font-family:'Shippori Mincho',serif; font-size:clamp(36px,9vw,60px); font-weight:800; color:#fff; letter-spacing:0.2em; margin-bottom:16px; }
+  .loading-sub { font-family:'Cormorant Garamond',serif; font-size:12px; letter-spacing:0.5em; color:var(--gold); margin-bottom:48px; text-transform:uppercase; }
+  .oracle-list { list-style:none; text-align:left; display:inline-block; margin-bottom:48px; }
+  .oracle-list li { font-family:'Noto Serif JP',serif; font-size:15px; color:var(--text-sub); letter-spacing:0.15em; padding:10px 0; border-bottom:1px solid rgba(212,168,75,0.1); display:flex; align-items:center; gap:16px; transition:color 0.5s; }
+  .oracle-list li.done { color:#fff; }
+  .oracle-list li .chk { width:16px; height:16px; border:1px solid rgba(212,168,75,0.3); border-radius:50%; flex-shrink:0; transition:all 0.4s; }
+  .oracle-list li.done .chk { background:var(--gold); border-color:var(--gold); box-shadow:0 0 8px var(--gold); }
+  .loading-msg { font-family:'Shippori Mincho',serif; font-size:16px; color:var(--text-sub); letter-spacing:0.2em; }
+
+  /* ── 結果画面 ── */
+  #screen-result .wrapper { padding-top:0; }
+  .result-header { width:100%; text-align:center; padding:48px 0 32px; border-bottom:1px solid var(--border); margin-bottom:0; }
+  .result-logo { font-family:'Shippori Mincho',serif; font-size:28px; font-weight:800; color:#fff; letter-spacing:0.2em; }
+  .result-logo-sub { font-family:'Cormorant Garamond',serif; font-size:10px; letter-spacing:0.6em; color:var(--gold); margin-top:4px; display:block; }
+  .result-name { font-family:'Shippori Mincho',serif; font-size:22px; font-weight:600; color:#fff; margin-top:28px; letter-spacing:0.1em; }
+  .result-data-row { display:flex; gap:12px; justify-content:center; flex-wrap:wrap; margin-top:12px; }
+  .result-tag { font-family:'Noto Serif JP',serif; font-size:12px; color:var(--gold); border:1px solid var(--border); padding:4px 12px; }
+
+  .result-section { width:100%; margin-top:0; }
+  .result-block { border-bottom:1px solid var(--border); padding:32px 0; }
+  .result-block-title { font-family:'Cormorant Garamond',serif; font-size:11px; letter-spacing:0.45em; color:var(--gold); text-transform:uppercase; margin-bottom:16px; }
+  .catchcopy { font-family:'Shippori Mincho',serif; font-size:clamp(20px,5vw,26px); font-weight:600; color:#fff; line-height:1.7; letter-spacing:0.06em; }
+  .result-text { font-family:'Noto Serif JP',serif; font-size:15px; line-height:2.0; color:#ddeaee; letter-spacing:0.04em; margin-top:8px; }
+
+  .oracle-data-grid { display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-top:8px; }
+  .oracle-data-item { background:rgba(212,168,75,0.04); border:1px solid var(--border); padding:12px 16px; }
+  .oracle-data-name { font-family:'Cormorant Garamond',serif; font-size:11px; letter-spacing:0.2em; color:var(--gold); margin-bottom:4px; }
+  .oracle-data-val { font-family:'Noto Serif JP',serif; font-size:14px; color:#fff; }
+
+  .btn-share { width:100%; margin-top:32px; padding:20px; background:rgba(212,168,75,0.1); border:1px solid var(--gold); color:#fff; font-family:'Shippori Mincho',serif; font-size:16px; font-weight:600; letter-spacing:0.4em; cursor:pointer; transition:all 0.3s; }
+  .btn-share:hover { background:rgba(212,168,75,0.2); }
+  .btn-again { width:100%; margin-top:12px; padding:16px; background:transparent; border:1px solid rgba(212,168,75,0.3); color:var(--text-sub); font-family:'Noto Serif JP',serif; font-size:14px; letter-spacing:0.3em; cursor:pointer; transition:all 0.3s; }
+  .btn-again:hover { border-color:var(--gold); color:#fff; }
+
+  .result-footer { text-align:center; padding:48px 0 0; }
+  .result-footer p { font-family:'Cormorant Garamond',serif; font-size:11px; letter-spacing:0.3em; color:var(--text-sub); opacity:0.4; }
+
+  .footer { margin-top:72px; text-align:center; opacity:0; animation:fadeIn 1s ease 2.2s forwards; }
+  .footer p { font-family:'Cormorant Garamond',serif; font-size:12px; letter-spacing:0.3em; color:var(--text-sub); opacity:0.45; }
+
+  @keyframes fadeUp { from{opacity:0;transform:translateY(18px);}to{opacity:1;transform:translateY(0);} }
+  @keyframes fadeIn { from{opacity:0;}to{opacity:1;} }
+  @keyframes fadeInUp { from{opacity:0;transform:translateY(24px);}to{opacity:1;transform:translateY(0);} }
+  .anim { opacity:0; animation:fadeInUp 0.7s ease forwards; }
+</style>
+</head>
+<body>
+
+<canvas id="stars"></canvas>
+<div class="horizon"></div>
+
+<!-- ══════════════════════════════════
+     SCREEN 1: 入力
+══════════════════════════════════ -->
+<div id="screen-input" class="screen active">
+<div class="wrapper">
+  <div class="topbar">
+    <span>Seven Oracles</span>
+    <div class="gem"></div>
+    <span>5000 Years</span>
+  </div>
+  <div class="hero">
+    <div class="logo">アカツキ</div>
+    <span class="logo-sub">A &nbsp; K &nbsp; A &nbsp; T &nbsp; S &nbsp; U &nbsp; K &nbsp; I</span>
+  </div>
+  <div class="vline"></div>
+  <div class="catch">
+    <p class="catch-main">5000年かけて培った<br><em>7つの占術</em>で<br>あなたのこれからを見る。</p>
+  </div>
+  <div class="badges">
+    <span class="badge">数秘術</span>
+    <span class="badge">西洋占星術</span>
+    <span class="badge">九星気学</span>
+    <span class="badge">姓名判断</span>
+    <span class="badge">四柱推命</span>
+    <span class="badge">宿曜占術</span>
+    <span class="badge">タロット</span>
+  </div>
+
+  <div class="card">
+    <div class="card-title">Oracle Input</div>
+    <div class="field">
+      <label>お名前（漢字）</label>
+      <input id="inp-name" type="text" placeholder="例：山田 花子">
+    </div>
+    <div class="field">
+      <label>生年月日</label>
+      <input id="inp-birth" type="text" placeholder="例：1985/8/15">
+    </div>
+    <div class="field">
+      <label>性別</label>
+      <div class="gender-row">
+        <button class="gender-btn active" data-g="男">男</button>
+        <button class="gender-btn" data-g="女">女</button>
+      </div>
+    </div>
+    <span class="section-label">鑑定テーマ（複数選択可）</span>
+    <div class="themes">
+      <button class="theme-btn on">総合運</button>
+      <button class="theme-btn">仕事運</button>
+      <button class="theme-btn">金運</button>
+      <button class="theme-btn">恋愛運</button>
+      <button class="theme-btn">適職</button>
+      <button class="theme-btn">注意点</button>
+    </div>
+    <button class="btn-main" id="btn-start">鑑　定　す　る</button>
+    <div id="err-msg" class="err-msg"></div>
+    <div class="api-area">
+      <div class="api-box" id="apiBox" style="display:block;">
+        <p style="font-size:13px;letter-spacing:0.15em;color:#8fa0b8;margin-bottom:10px;font-family:'Noto Serif JP',serif;">Claude APIキー</p>
+        <input id="inp-apikey" type="password" placeholder="sk-ant-api03-...">
+        <p class="api-note">入力したキーはこのブラウザ内でのみ使用されます。外部サーバーには一切送信されません。</p>
+      </div>
+    </div>
+  </div>
+  <div class="footer"><p>created by MUKU / 100日後にAIで起業する</p></div>
+</div>
+</div>
+
+<!-- ══════════════════════════════════
+     SCREEN 2: ローディング
+══════════════════════════════════ -->
+<div id="screen-loading" class="screen">
+<div class="wrapper" style="justify-content:center;">
+  <div class="loading-inner">
+    <div class="loading-title">アカツキ</div>
+    <div class="loading-sub">Reading your destiny...</div>
+    <ul class="oracle-list" id="oracle-list">
+      <li id="ol-0"><span class="chk"></span>数秘術</li>
+      <li id="ol-1"><span class="chk"></span>西洋占星術</li>
+      <li id="ol-2"><span class="chk"></span>九星気学</li>
+      <li id="ol-3"><span class="chk"></span>姓名判断</li>
+      <li id="ol-4"><span class="chk"></span>四柱推命</li>
+      <li id="ol-5"><span class="chk"></span>宿曜占術</li>
+      <li id="ol-6"><span class="chk"></span>タロット</li>
+    </ul>
+    <div class="loading-msg" id="loading-msg">5000年の叡智が、交わっています。</div>
+  </div>
+</div>
+</div>
+
+<!-- ══════════════════════════════════
+     SCREEN 3: 結果
+══════════════════════════════════ -->
+<div id="screen-result" class="screen">
+<div class="wrapper">
+  <div class="result-header anim">
+    <div class="result-logo">アカツキ</div>
+    <span class="result-logo-sub">A K A T S U K I</span>
+    <div class="result-name" id="res-name"></div>
+    <div class="result-data-row" id="res-tags"></div>
+  </div>
+
+  <div class="result-section">
+    <!-- 総合 -->
+    <div class="result-block anim" style="animation-delay:0.1s">
+      <div class="result-block-title">Overall — 総合鑑定</div>
+      <div class="catchcopy" id="res-catchcopy"></div>
+      <div class="result-text" id="res-overall"></div>
+    </div>
+
+    <!-- テーマ別（動的生成） -->
+    <div id="res-themes"></div>
+
+    <!-- 7つのデータ -->
+    <div class="result-block anim" style="animation-delay:0.3s">
+      <div class="result-block-title">Seven Oracles — 鑑定データ</div>
+      <div class="oracle-data-grid" id="res-data-grid"></div>
+    </div>
+
+    <button class="btn-share" id="btn-share">X にシェアする</button>
+    <button class="btn-again" id="btn-again">もう一度占う</button>
+  </div>
+
+  <div class="result-footer"><p>created by MUKU / 100日後にAIで起業する</p></div>
+</div>
+</div>
+
+<script>
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// 星空
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+const cv = document.getElementById('stars');
+const cx = cv.getContext('2d');
+let ss = [];
+function resize() {
+  cv.width = window.innerWidth; cv.height = window.innerHeight; ss = [];
+  const n = Math.floor(cv.width * cv.height / 3800);
+  for (let i=0;i<n;i++) ss.push({x:Math.random()*cv.width,y:Math.random()*cv.height,r:Math.random()*1.1+0.2,a:Math.random()*0.6+0.3,sp:Math.random()*0.006+0.002,ph:Math.random()*Math.PI*2});
+}
+function draw(t) {
+  cx.clearRect(0,0,cv.width,cv.height);
+  ss.forEach(s=>{const a=s.a*(0.4+0.6*Math.sin(t*s.sp+s.ph));cx.beginPath();cx.arc(s.x,s.y,s.r,0,Math.PI*2);cx.fillStyle=`rgba(255,255,255,${a})`;cx.fill();});
+  requestAnimationFrame(draw);
+}
+window.addEventListener('resize',resize); resize(); requestAnimationFrame(draw);
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// UI操作
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+document.querySelectorAll('.gender-btn').forEach(b=>{
+  b.addEventListener('click',()=>{document.querySelectorAll('.gender-btn').forEach(x=>x.classList.remove('active'));b.classList.add('active');});
+});
+document.querySelectorAll('.theme-btn').forEach(b=>b.addEventListener('click',()=>b.classList.toggle('on')));
+function toggleApi(){const box=document.getElementById('apiBox');box.style.display=box.style.display==='none'?'block':'none';}
+
+function showScreen(id) {
+  document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+  window.scrollTo(0,0);
+}
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// 占術計算ロジック
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+// 1. 数秘術
+function reduceNum(n) {
+  while(n>9&&n!==11&&n!==22&&n!==33){n=String(n).split('').reduce((a,b)=>a+parseInt(b),0);}return n;
+}
+function calcLifePath(birth) {
+  const d = birth.replace(/\D/g,'');
+  return reduceNum(d.split('').reduce((a,b)=>a+parseInt(b),0));
+}
+function calcPersonalYear(birth,year=2026) {
+  const mmdd = birth.replace(/\D/g,'').slice(4);
+  const s = String(year)+mmdd;
+  return reduceNum(s.split('').reduce((a,b)=>a+parseInt(b),0));
+}
+
+// 2. 西洋占星術
+function calcZodiac(birth) {
+  const parts = birth.split(/[\/-]/);
+  const m=parseInt(parts[1]),d=parseInt(parts[2]);
+  if((m===3&&d>=21)||(m===4&&d<=19))return '牡羊座';
+  if((m===4&&d>=20)||(m===5&&d<=20))return '牡牛座';
+  if((m===5&&d>=21)||(m===6&&d<=21))return '双子座';
+  if((m===6&&d>=22)||(m===7&&d<=22))return '蟹座';
+  if((m===7&&d>=23)||(m===8&&d<=22))return '獅子座';
+  if((m===8&&d>=23)||(m===9&&d<=22))return '乙女座';
+  if((m===9&&d>=23)||(m===10&&d<=23))return '天秤座';
+  if((m===10&&d>=24)||(m===11&&d<=22))return '蠍座';
+  if((m===11&&d>=23)||(m===12&&d<=21))return '射手座';
+  if((m===12&&d>=22)||(m===1&&d<=19))return '山羊座';
+  if((m===1&&d>=20)||(m===2&&d<=18))return '水瓶座';
+  return '魚座';
+}
+
+// 3. 九星気学
+function calcKyusei(birth,gender) {
+  const year=parseInt(birth.split(/[\/-]/)[0]);
+  const stars=['九紫火星','八白土星','七赤金星','六白金星','五黄土星','四緑木星','三碧木星','二黒土星','一白水星'];
+  let idx;
+  if(gender==='男'){idx=(year-1)%9;}
+  else{idx=(8-((year-1)%9))%9;}
+  return stars[idx];
+}
+
+// 4. 姓名判断（画数テーブル）
+const STROKES = {
+  '亜':7,'哀':9,'愛':13,'悪':11,'握':12,'安':6,'暗':13,'以':5,'意':13,'異':11,
+  '移':11,'維':14,'衣':6,'位':7,'依':8,'囲':7,'夷':6,'委':8,'威':9,'尉':11,
+  '慰':15,'易':8,'為':9,'緯':16,'育':8,'一':1,'壱':7,'逸':11,'稲':15,'今':4,
+  '印':6,'引':4,'員':10,'院':10,'陰':11,'飲':12,'隠':14,'右':5,'宇':6,'雨':8,
+  '羽':6,'運':12,'永':5,'英':8,'映':9,'栄':9,'営':12,'詠':12,'鋭':15,'益':10,
+  '液':11,'悦':10,'越':12,'円':4,'援':12,'延':8,'炎':8,'演':14,'遠':13,'汚':7,
+  '横':15,'億':15,'奥':12,'応':7,'押':8,'欧':8,'黄':11,'央':5,'往':8,'桜':10,
+  '翁':10,'温':12,'音':9,'下':3,'化':4,'加':5,'可':5,'佳':8,'果':8,'河':8,
+  '花':7,'火':4,'禍':13,'荷':10,'華':10,'夏':10,'家':10,'価':8,'課':15,'架':9,
+  '歌':14,'嘉':14,'賀':12,'雅':13,'介':4,'会':6,'回':6,'快':7,'戒':7,'改':7,
+  '界':9,'皆':9,'海':9,'絵':12,'開':12,'階':12,'街':12,'貝':7,'外':5,'各':6,
+  '覚':12,'学':8,'岳':8,'楽':13,'額':18,'掛':11,'勝':12,'活':9,'夏':10,'観':18,
+  '環':17,'感':13,'完':7,'官':8,'寛':13,'管':14,'関':14,'間':12,'漢':13,'館':16,
+  '岸':8,'玄':5,'原':10,'健':11,'堅':12,'権':15,'基':11,'輝':15,'機':16,'帰':10,
+  '木':4,'気':6,'記':10,'貴':12,'起':10,'期':12,'規':11,'喜':12,'幾':12,'久':3,
+  '休':6,'及':3,'究':7,'旧':5,'急':9,'球':11,'究':7,'給':12,'吉':6,'宮':10,
+  '弓':3,'牛':4,'玉':5,'強':11,'教':11,'橋':16,'共':6,'協':8,'競':20,'京':8,
+  '享':8,'凶':4,'仰':6,'居':8,'許':11,'鏡':19,'霧':19,'九':2,'空':8,'草':9,
+  '郡':10,'軍':9,'群':13,'恵':10,'形':7,'渓':11,'経':11,'継':13,'景':12,'敬':12,
+  '桂':10,'系':7,'計':9,'芸':7,'迎':7,'鶏':19,'月':4,'元':4,'現':11,'験':18,
+  '弦':8,'源':13,'光':6,'公':4,'功':5,'広':5,'号':5,'合':6,'克':7,'谷':7,
+  '語':14,'誤':14,'護':20,'後':9,'好':6,'孝':7,'江':6,'幸':8,'航':10,'高':10,
+  '剛':10,'康':11,'鋼':16,'構':14,'購':17,'降':10,'講':17,'黒':11,'今':4,'込':5,
+  '婚':11,'根':10,'魂':14,'坤':8,'困':7,'佐':7,'差':10,'座':10,'才':3,'細':11,
+  '采':8,'際':14,'最':12,'妻':8,'彩':11,'哉':9,'菜':11,'崎':11,'斎':11,'作':7,
+  '昨':9,'策':12,'桜':10,'沙':7,'三':3,'参':8,'山':3,'散':12,'産':11,'賛':15,
+  '支':4,'子':3,'史':5,'四':5,'市':5,'志':7,'糸':6,'紙':10,'詩':13,'試':13,
+  '施':9,'寺':6,'時':10,'示':5,'士':3,'事':8,'仕':5,'字':6,'司':5,'思':9,
+  '慈':13,'璽':25,'式':6,'識':19,'実':8,'疾':10,'失':5,'室':9,'七':2,'質':15,
+  '執':11,'芝':6,'社':7,'射':10,'謝':17,'者':8,'若':8,'取':8,'主':5,'守':6,
+  '手':4,'朱':6,'珠':10,'種':14,'周':8,'秀':7,'終':11,'習':11,'修':10,'集':12,
+  '十':2,'重':9,'従':10,'縦':16,'術':11,'出':5,'春':9,'準':13,'処':5,'初':7,
+  '小':3,'勝':12,'将':10,'昭':9,'晶':12,'正':5,'生':5,'星':9,'清':11,'誠':13,
+  '製':14,'精':14,'青':8,'政':9,'成':6,'聖':13,'声':7,'盛':11,'西':6,'世':5,
+  '整':16,'瀬':19,'雪':11,'川':3,'千':3,'先':6,'泉':9,'専':9,'宣':9,'選':15,
+  '薦':17,'践':13,'戦':16,'賎':15,'然':12,'禅':17,'前':9,'全':6,'双':4,'創':12,
+  '壮':6,'宗':8,'総':14,'草':9,'祖':9,'素':10,'想':13,'蒼':13,'曽':11,'操':16,
+  '増':14,'贈':18,'促':9,'束':7,'側':11,'測':12,'続':13,'村':7,'多':6,'太':4,
+  '体':7,'台':5,'大':3,'代':5,'第':11,'題':18,'竹':6,'達':12,'誰':15,'嘆':13,
+  '断':11,'男':7,'単':9,'担':8,'探':11,'炭':9,'短':12,'端':14,'知':8,'地':6,
+  '池':6,'竹':6,'茶':9,'仲':6,'中':4,'長':8,'朝':12,'兆':6,'鳥':11,'直':8,
+  '通':10,'天':4,'店':8,'点':9,'展':10,'転':11,'伝':6,'田':5,'土':3,'都':11,
+  '度':9,'当':6,'東':8,'冬':5,'島':10,'登':12,'道':12,'内':4,'奈':8,'那':7,
+  '南':9,'波':8,'白':5,'発':9,'晩':12,'美':9,'日':4,'入':2,'尿':7,'如':6,
+  '年':6,'乃':2,'濃':16,'納':10,'能':10,'葉':12,'則':9,'覇':19,'配':10,'廃':12,
+  '拝':8,'杯':8,'倍':10,'培':11,'博':12,'泊':8,'麦':7,'凪':6,'梨':11,'奈':8,
+  '莉':11,'茉':8,'椋':13,'桃':10,'日':4,'茉':8,'莉':11,'凪':6,'暁':12,'黎':15,
+  '曙':17,'瑛':12,'栞':10,'蒼':13,'蓮':13,'颯':14,'碧':14,'凛':15,'澪':16,
+  '野':11,'天':4,'椋':13,'太':4,'桃':10,'子':3
+};
+
+function getStrokes(char) { return STROKES[char] || 5; }
+function calcSeimei(fullName) {
+  const name = fullName.replace(/\s/g,'');
+  const sei = name.slice(0,2); const mei = name.slice(2);
+  const tengaku = sei.split('').reduce((a,c)=>a+getStrokes(c),0);
+  const chikaku = mei.split('').reduce((a,c)=>a+getStrokes(c),0);
+  const jinkaku = getStrokes(sei[sei.length-1]) + getStrokes(mei[0]||'');
+  const gaikaku = getStrokes(sei[0]) + (mei.length>1?getStrokes(mei[mei.length-1]):0);
+  const sokaku = tengaku + chikaku;
+  return {tengaku, chikaku, jinkaku, gaikaku, sokaku};
+}
+
+// 5. 四柱推命
+function calcShichu(birth) {
+  const year=parseInt(birth.split(/[\/-]/)[0]);
+  const JIKKAN=['甲','乙','丙','丁','戊','己','庚','辛','壬','癸'];
+  const JUNISHI=['子','丑','寅','卯','辰','巳','午','未','申','酉','戌','亥'];
+  const GOGYO={甲:'木',乙:'木',丙:'火',丁:'火',戊:'土',己:'土',庚:'金',辛:'金',壬:'水',癸:'水'};
+  const kan=JIKKAN[(year-4)%10];
+  const shi=JUNISHI[(year-4)%12];
+  return {kan,shi,gogyo:GOGYO[kan],label:`${kan}${shi}年生まれ・五行：${GOGYO[kan]}`};
+}
+
+// 6. 宿曜占術
+function calcShukuyo(birth) {
+  const SHUKU=['昴宿','畢宿','觜宿','参宿','井宿','鬼宿','柳宿','星宿','張宿','翼宿','軫宿','角宿','亢宿','氐宿','房宿','心宿','尾宿','箕宿','斗宿','女宿','虚宿','危宿','室宿','壁宿','奎宿','婁宿','胃宿'];
+  const base=new Date('1900-01-01');
+  const target=new Date(birth.replace(/\//g,'-'));
+  const diff=Math.floor((target-base)/(1000*60*60*24));
+  return SHUKU[((diff%27)+27)%27];
+}
+
+// 7. タロット
+function calcTarot(birth) {
+  const ARCANA=['愚者','魔術師','女教皇','女帝','皇帝','教皇','恋人','戦車','力','隠者','運命の輪','正義','吊るされた男','死神','節制','悪魔','塔','星','月','太陽','審判','世界'];
+  const digits=birth.replace(/\D/g,'').split('').map(Number);
+  let sum=digits.reduce((a,b)=>a+b,0);
+  while(sum>21){sum=String(sum).split('').map(Number).reduce((a,b)=>a+b,0);}
+  return ARCANA[sum];
+}
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// メイン処理
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+let resultData = {};
+
+document.getElementById('btn-start').addEventListener('click', async () => {
+  const name    = document.getElementById('inp-name').value.trim();
+  const birth   = document.getElementById('inp-birth').value.trim();
+  const gender  = document.querySelector('.gender-btn.active').dataset.g;
+  const themes  = [...document.querySelectorAll('.theme-btn.on')].map(b=>b.textContent);
+  const apikey  = document.getElementById('inp-apikey').value.trim();
+  const errEl   = document.getElementById('err-msg');
+
+  errEl.style.display='none';
+
+  if(!name){errEl.textContent='お名前を入力してください。';errEl.style.display='block';return;}
+  if(!birth.match(/\d{4}[\/-]\d{1,2}[\/-]\d{1,2}/)){errEl.textContent='生年月日を正しく入力してください（例：1994/10/16）。';errEl.style.display='block';return;}
+  if(themes.length===0){errEl.textContent='鑑定テーマを1つ以上選択してください。';errEl.style.display='block';return;}
+  if(!apikey){
+    document.getElementById('apiBox').style.display='block';
+    errEl.textContent='Claude APIキーを入力してください。';errEl.style.display='block';return;
+  }
+
+  // 占術計算
+  const lp    = calcLifePath(birth);
+  const py    = calcPersonalYear(birth);
+  const zodiac= calcZodiac(birth);
+  const kyusei= calcKyusei(birth,gender);
+  const seimai= calcSeimei(name);
+  const shichu= calcShichu(birth);
+  const shuku = calcShukuyo(birth);
+  const tarot = calcTarot(birth);
+
+  const astroData = {lp,py,zodiac,kyusei,shichu,shuku,tarot,seimai};
+
+  // ローディング画面へ
+  showScreen('screen-loading');
+
+  // 占術リストを順番に点灯
+  const listItems = document.querySelectorAll('.oracle-list li');
+  for(let i=0;i<listItems.length;i++){
+    await new Promise(r=>setTimeout(r,600));
+    listItems[i].classList.add('done');
+  }
+  document.getElementById('loading-msg').textContent = 'AIが叡智を統合しています...';
+
+  // Claude API呼び出し
+  const prompt = buildPrompt(name,birth,gender,themes,astroData);
+  let fortune;
+  try {
+    fortune = await callClaude(apikey, prompt);
+  } catch(e) {
+    showScreen('screen-input');
+    const err = document.getElementById('err-msg');
+    err.textContent = 'APIエラー：' + (e.message || 'APIキーまたはネットワークを確認してください。');
+    err.style.display = 'block';
+    document.getElementById('apiBox').style.display = 'block';
+    return;
+  }
+
+  resultData = {name,birth,gender,themes,astroData,fortune};
+  renderResult(resultData);
+  showScreen('screen-result');
+});
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// プロンプト生成
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+function buildPrompt(name,birth,gender,themes,a) {
+  return `あなたは東洋・西洋・密教の占術を極めた占い師です。以下のデータをもとに${name}さんを鑑定してください。
+
+【基本情報】
+名前：${name}（${gender}）
+生年月日：${birth}
+
+【7つの占術データ】
+・数秘術　　　　ライフパス ${a.lp}　個人年（2026年） ${a.py}
+・西洋占星術　　${a.zodiac}
+・九星気学　　　${a.kyusei}
+・姓名判断　　　天格${a.seimai.tengaku} 地格${a.seimai.chikaku} 人格${a.seimai.jinkaku} 外格${a.seimai.gaikaku} 総格${a.seimai.sokaku}
+・四柱推命　　　${a.shichu.label}
+・宿曜占術　　　${a.shuku}
+・タロット　　　${a.tarot}
+
+【鑑定テーマ】${themes.join('・')}
+
+【出力フォーマット】
+必ず以下のJSON形式のみで返してください。マークダウン・コードブロック・余計な文字は一切含めないこと。
+
+{
+  "catchcopy": "その人を表す一言（20文字以内・断言調・力強く）",
+  "overall": "総合鑑定文（200文字程度・7つの占術を統合した深い洞察）",
+  "themes": {
+    ${themes.map(t=>`"${t}": "鑑定文（150文字程度）"`).join(',\n    ')}
+  }
+}`;
+}
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// Claude API呼び出し
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+async function callClaude(apikey, prompt) {
+  const res = await fetch('https://api.anthropic.com/v1/messages',{
+    method:'POST',
+    headers:{
+      'Content-Type':'application/json',
+      'x-api-key':apikey,
+      'anthropic-version':'2023-06-01',
+      'anthropic-dangerous-direct-browser-access':'true'
+    },
+    body:JSON.stringify({model:'claude-sonnet-4-20250514',max_tokens:1500,messages:[{role:'user',content:prompt}]})
+  });
+  if(!res.ok){
+    const errBody = await res.json().catch(()=>({}));
+    throw new Error(errBody?.error?.message || 'API Error: '+res.status);
+  }
+  const data = await res.json();
+  const text = data.content.map(i=>i.text||'').join('').replace(/```json[\s\S]*?```|```/g,'').trim();
+  try {
+    return JSON.parse(text);
+  } catch(e) {
+    // JSONパース失敗時はテキストをそのまま総合鑑定として返す
+    return { catchcopy:'鑑定完了', overall: text, themes:{} };
+  }
+}
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// 結果画面レンダリング
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+function renderResult({name,astroData:a,themes,fortune}) {
+  document.getElementById('res-name').textContent = name + ' さんの鑑定';
+
+  const tags = [a.zodiac, `LP${a.lp}`, a.kyusei, a.tarot];
+  document.getElementById('res-tags').innerHTML = tags.map(t=>`<span class="result-tag">${t}</span>`).join('');
+
+  document.getElementById('res-catchcopy').textContent = fortune.catchcopy || '';
+  document.getElementById('res-overall').textContent   = fortune.overall   || '';
+
+  // テーマ別
+  const themesEl = document.getElementById('res-themes');
+  themesEl.innerHTML = '';
+  themes.forEach((t,i)=>{
+    if(!fortune.themes||!fortune.themes[t])return;
+    const d=document.createElement('div');
+    d.className='result-block anim';
+    d.style.animationDelay=(0.15+i*0.1)+'s';
+    d.innerHTML=`<div class="result-block-title">${t}</div><div class="result-text">${fortune.themes[t]}</div>`;
+    themesEl.appendChild(d);
+  });
+
+  // 7つのデータ
+  const grid = document.getElementById('res-data-grid');
+  const items = [
+    ['数秘術',`ライフパス ${a.lp} / 個人年 ${a.py}`],
+    ['西洋占星術',a.zodiac],
+    ['九星気学',a.kyusei],
+    ['姓名判断',`総格 ${a.seimai.sokaku}`],
+    ['四柱推命',`${a.shichu.kan}${a.shichu.shi}年・${a.shichu.gogyo}`],
+    ['宿曜占術',a.shuku],
+    ['タロット',a.tarot],
+  ];
+  grid.innerHTML = items.map(([n,v])=>`<div class="oracle-data-item"><div class="oracle-data-name">${n}</div><div class="oracle-data-val">${v}</div></div>`).join('');
+}
+
+// シェア
+document.getElementById('btn-share').addEventListener('click',()=>{
+  const {name,astroData:a,fortune} = resultData;
+  const text = `【アカツキ鑑定】${name} さん\n\n${fortune.catchcopy}\n\n${a.zodiac} / LP${a.lp} / ${a.kyusei}\n\n5000年かけて培った7つの占術であなたのこれからを見る。\n#アカツキ #占い`;
+  const url = `https://twitter.com/intent/tweet?text=${encodeURIComponent(text)}`;
+  window.open(url,'_blank');
+});
+
+// もう一度
+document.getElementById('btn-again').addEventListener('click',()=>{
+  document.querySelectorAll('.oracle-list li').forEach(li=>li.classList.remove('done'));
+  document.getElementById('loading-msg').textContent='5000年の叡智が、交わっています。';
+  showScreen('screen-input');
+});
+</script>
+</body>
+</html>
