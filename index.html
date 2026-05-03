@@ -84,6 +84,19 @@
 
   .err-msg { color:#e07070; font-size:13px; margin-top:12px; text-align:center; letter-spacing:0.1em; display:none; }
 
+  /* ── 生年月日3分割 ── */
+  .birth-row { display:flex; align-items:baseline; gap:10px; }
+  .birth-part { display:flex; align-items:baseline; gap:5px; }
+  .birth-part-year { flex:2.2; }
+  .birth-part-md   { flex:1; }
+  .birth-part input { width:100%; background:transparent; border:none; border-bottom:1px solid rgba(212,168,75,0.4); padding:12px 0; color:#fff; font-family:'Noto Serif JP',serif; font-size:20px; outline:none; transition:border-color 0.3s; text-align:center; letter-spacing:0.05em; }
+  .birth-part input:focus { border-bottom-color:var(--gold); }
+  .birth-part input::placeholder { color:rgba(180,200,220,0.25); font-size:15px; }
+  .birth-unit { font-family:'Noto Serif JP',serif; font-size:14px; color:#8fa0b8; flex-shrink:0; padding-bottom:12px; }
+
+  /* ── レーダーチャート ── */
+  .radar-wrap { width:100%; max-width:320px; margin:16px auto 0; }
+
   /* ── ローディング画面 ── */
   #screen-loading .wrapper { justify-content:center; min-height:100vh; }
   .loading-inner { text-align:center; }
@@ -174,7 +187,20 @@
     </div>
     <div class="field">
       <label>生年月日</label>
-      <input id="inp-birth" type="text" placeholder="例：1985/8/15">
+      <div class="birth-row">
+        <div class="birth-part birth-part-year">
+          <input id="inp-year" type="text" inputmode="numeric" maxlength="4" placeholder="1985">
+          <span class="birth-unit">年</span>
+        </div>
+        <div class="birth-part birth-part-md">
+          <input id="inp-month" type="text" inputmode="numeric" maxlength="2" placeholder="8">
+          <span class="birth-unit">月</span>
+        </div>
+        <div class="birth-part birth-part-md">
+          <input id="inp-day" type="text" inputmode="numeric" maxlength="2" placeholder="15">
+          <span class="birth-unit">日</span>
+        </div>
+      </div>
     </div>
     <div class="field">
       <label>性別</label>
@@ -251,8 +277,16 @@
     <!-- テーマ別（動的生成） -->
     <div id="res-themes"></div>
 
+    <!-- レーダーチャート -->
+    <div class="result-block anim" style="animation-delay:0.25s">
+      <div class="result-block-title">Oracle Balance — 7星バランス</div>
+      <div class="radar-wrap">
+        <canvas id="radar-canvas" width="320" height="340"></canvas>
+      </div>
+    </div>
+
     <!-- 7つのデータ -->
-    <div class="result-block anim" style="animation-delay:0.3s">
+    <div class="result-block anim" style="animation-delay:0.35s">
       <div class="result-block-title">Seven Oracles — 鑑定データ</div>
       <div class="oracle-data-grid" id="res-data-grid"></div>
     </div>
@@ -292,6 +326,19 @@ document.querySelectorAll('.gender-btn').forEach(b=>{
 });
 document.querySelectorAll('.theme-btn').forEach(b=>b.addEventListener('click',()=>b.classList.toggle('on')));
 function toggleApi(){const box=document.getElementById('apiBox');box.style.display=box.style.display==='none'?'block':'none';}
+
+// ── 生年月日 自動フォーカス移動 ──
+document.getElementById('inp-year').addEventListener('input',function(){
+  this.value=this.value.replace(/\D/g,'');
+  if(this.value.length===4)document.getElementById('inp-month').focus();
+});
+document.getElementById('inp-month').addEventListener('input',function(){
+  this.value=this.value.replace(/\D/g,'');
+  if(this.value.length===2)document.getElementById('inp-day').focus();
+});
+document.getElementById('inp-day').addEventListener('input',function(){
+  this.value=this.value.replace(/\D/g,'');
+});
 
 function showScreen(id) {
   document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
@@ -425,7 +472,9 @@ function calcShichu(birth) {
 function calcShukuyo(birth) {
   const SHUKU=['昴宿','畢宿','觜宿','参宿','井宿','鬼宿','柳宿','星宿','張宿','翼宿','軫宿','角宿','亢宿','氐宿','房宿','心宿','尾宿','箕宿','斗宿','女宿','虚宿','危宿','室宿','壁宿','奎宿','婁宿','胃宿'];
   const base=new Date('1900-01-01');
-  const target=new Date(birth.replace(/\//g,'-'));
+  const parts=birth.split(/[\/-]/);
+  const dateStr=`${parts[0]}-${parts[1].padStart(2,'0')}-${parts[2].padStart(2,'0')}`;
+  const target=new Date(dateStr);
   const diff=Math.floor((target-base)/(1000*60*60*24));
   return SHUKU[((diff%27)+27)%27];
 }
@@ -446,7 +495,10 @@ let resultData = {};
 
 document.getElementById('btn-start').addEventListener('click', async () => {
   const name    = document.getElementById('inp-name').value.trim();
-  const birth   = document.getElementById('inp-birth').value.trim();
+  const yr      = document.getElementById('inp-year').value.trim();
+  const mo      = document.getElementById('inp-month').value.trim();
+  const dy      = document.getElementById('inp-day').value.trim();
+  const birth   = `${yr}/${mo}/${dy}`;
   const gender  = document.querySelector('.gender-btn.active').dataset.g;
   const themes  = [...document.querySelectorAll('.theme-btn.on')].map(b=>b.textContent);
   const apikey  = document.getElementById('inp-apikey').value.trim();
@@ -455,7 +507,7 @@ document.getElementById('btn-start').addEventListener('click', async () => {
   errEl.style.display='none';
 
   if(!name){errEl.textContent='お名前を入力してください。';errEl.style.display='block';return;}
-  if(!birth.match(/\d{4}[\/-]\d{1,2}[\/-]\d{1,2}/)){errEl.textContent='生年月日を正しく入力してください（例：1994/10/16）。';errEl.style.display='block';return;}
+  if(yr.length!==4||!mo||!dy||isNaN(yr)||isNaN(mo)||isNaN(dy)){errEl.textContent='生年月日を正しく入力してください。';errEl.style.display='block';return;}
   if(themes.length===0){errEl.textContent='鑑定テーマを1つ以上選択してください。';errEl.style.display='block';return;}
   if(!apikey){
     document.getElementById('apiBox').style.display='block';
@@ -549,19 +601,136 @@ async function callClaude(apikey, prompt) {
       'anthropic-version':'2023-06-01',
       'anthropic-dangerous-direct-browser-access':'true'
     },
-    body:JSON.stringify({model:'claude-sonnet-4-20250514',max_tokens:1500,messages:[{role:'user',content:prompt}]})
+    body:JSON.stringify({model:'claude-sonnet-4-5',max_tokens:1500,messages:[{role:'user',content:prompt}]})
   });
   if(!res.ok){
     const errBody = await res.json().catch(()=>({}));
     throw new Error(errBody?.error?.message || 'API Error: '+res.status);
   }
   const data = await res.json();
-  const text = data.content.map(i=>i.text||'').join('').replace(/```json[\s\S]*?```|```/g,'').trim();
+  let text = data.content.map(i=>i.text||'').join('').trim();
+  // コードブロック内のJSONを抽出（削除ではなく中身を取り出す）
+  const codeBlock = text.match(/```(?:json)?\s*([\s\S]*?)```/);
+  if (codeBlock) text = codeBlock[1].trim();
   try {
     return JSON.parse(text);
   } catch(e) {
-    // JSONパース失敗時はテキストをそのまま総合鑑定として返す
     return { catchcopy:'鑑定完了', overall: text, themes:{} };
+  }
+}
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// 占術スコア算出（レーダーチャート用）
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+function calcScores(a) {
+  const LP_SC  = {1:72,2:85,3:91,4:68,5:88,6:92,7:79,8:83,9:95,11:98,22:96,33:99};
+  const ZOD_SC = {'牡羊座':85,'牡牛座':78,'双子座':90,'蟹座':82,'獅子座':93,'乙女座':86,'天秤座':88,'蠍座':94,'射手座':87,'山羊座':80,'水瓶座':91,'魚座':89};
+  const KYU_SC = {'九紫火星':92,'八白土星':85,'七赤金星':88,'六白金星':90,'五黄土星':96,'四緑木星':87,'三碧木星':82,'二黒土星':78,'一白水星':84};
+  const GOG_SC = {'木':87,'火':93,'土':85,'金':88,'水':91};
+  const SHUKU_LIST=['昴宿','畢宿','觜宿','参宿','井宿','鬼宿','柳宿','星宿','張宿','翼宿','軫宿','角宿','亢宿','氐宿','房宿','心宿','尾宿','箕宿','斗宿','女宿','虚宿','危宿','室宿','壁宿','奎宿','婁宿','胃宿'];
+  const SHUKU_SC=[88,72,68,90,85,93,78,82,86,75,80,89,84,91,87,94,79,76,83,70,85,81,89,77,86,74,82];
+  const ARCANA_LIST=['愚者','魔術師','女教皇','女帝','皇帝','教皇','恋人','戦車','力','隠者','運命の輪','正義','吊るされた男','死神','節制','悪魔','塔','星','月','太陽','審判','世界'];
+  const ARCANA_SC =[75,89,91,93,85,87,96,83,92,78,94,86,72,80,89,70,68,97,82,99,93,98];
+
+  const seimeiScore = Math.min(99, 58 + (a.seimai.jinkaku % 10) * 4 + (a.seimai.sokaku % 7));
+  const shukuIdx = SHUKU_LIST.indexOf(a.shuku);
+  const tarotIdx = ARCANA_LIST.indexOf(a.tarot);
+
+  return {
+    '数秘術':   LP_SC[a.lp]  || 75,
+    '星座運':   ZOD_SC[a.zodiac] || 80,
+    '九星気学': KYU_SC[a.kyusei] || 80,
+    '姓名判断': seimeiScore,
+    '四柱推命': GOG_SC[a.shichu.gogyo] || 80,
+    '宿曜占術': shukuIdx>=0 ? SHUKU_SC[shukuIdx] : 80,
+    'タロット': tarotIdx>=0 ? ARCANA_SC[tarotIdx] : 80,
+  };
+}
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// レーダーチャート描画
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+function drawRadarChart(canvasId, scores) {
+  const canvas = document.getElementById(canvasId);
+  if(!canvas) return;
+  const ctx = canvas.getContext('2d');
+  const W = canvas.width, H = canvas.height;
+  ctx.clearRect(0, 0, W, H);
+
+  const keys = Object.keys(scores);
+  const vals = keys.map(k => scores[k] / 100);
+  const n = keys.length;
+  const cx = W / 2, cy = (H - 20) / 2 + 10;
+  const R = Math.min(cx, cy) - 54;
+
+  function pt(i, r) {
+    const angle = (Math.PI * 2 * i / n) - Math.PI / 2;
+    return { x: cx + r * Math.cos(angle), y: cy + r * Math.sin(angle) };
+  }
+
+  // グリッド（5段階）
+  for(let l = 1; l <= 5; l++) {
+    const r = R * l / 5;
+    ctx.beginPath();
+    for(let i = 0; i < n; i++) {
+      const p = pt(i, r);
+      i===0 ? ctx.moveTo(p.x, p.y) : ctx.lineTo(p.x, p.y);
+    }
+    ctx.closePath();
+    ctx.strokeStyle = l===5 ? 'rgba(212,168,75,0.25)' : 'rgba(212,168,75,0.1)';
+    ctx.lineWidth = l===5 ? 1.2 : 0.7;
+    ctx.stroke();
+    // スコア目盛り（最外のみ）
+    if(l===5){
+      ctx.fillStyle='rgba(212,168,75,0.35)';
+      ctx.font='10px Cormorant Garamond,serif';
+      ctx.textAlign='center';
+      ctx.fillText('100', cx+2, cy - R - 4);
+    }
+  }
+
+  // 軸線
+  for(let i = 0; i < n; i++) {
+    const p = pt(i, R);
+    ctx.beginPath(); ctx.moveTo(cx, cy); ctx.lineTo(p.x, p.y);
+    ctx.strokeStyle='rgba(212,168,75,0.18)'; ctx.lineWidth=0.8; ctx.stroke();
+  }
+
+  // 塗り多角形
+  ctx.beginPath();
+  for(let i = 0; i < n; i++) {
+    const p = pt(i, R * vals[i]);
+    i===0 ? ctx.moveTo(p.x, p.y) : ctx.lineTo(p.x, p.y);
+  }
+  ctx.closePath();
+  ctx.fillStyle = 'rgba(212,168,75,0.13)';
+  ctx.fill();
+  // グロー外枠
+  ctx.shadowColor = 'rgba(212,168,75,0.6)';
+  ctx.shadowBlur = 8;
+  ctx.strokeStyle = '#d4a84b'; ctx.lineWidth = 2; ctx.stroke();
+  ctx.shadowBlur = 0;
+
+  // 頂点ドット
+  for(let i = 0; i < n; i++) {
+    const p = pt(i, R * vals[i]);
+    ctx.beginPath(); ctx.arc(p.x, p.y, 5, 0, Math.PI*2);
+    ctx.fillStyle = '#f0d080'; ctx.fill();
+    ctx.beginPath(); ctx.arc(p.x, p.y, 9, 0, Math.PI*2);
+    ctx.fillStyle = 'rgba(212,168,75,0.25)'; ctx.fill();
+  }
+
+  // ラベル＋スコア値
+  for(let i = 0; i < n; i++) {
+    const lp = pt(i, R + 38);
+    const score = scores[keys[i]];
+    ctx.textAlign = 'center';
+    ctx.fillStyle = '#c8d8e8';
+    ctx.font = '11px "Noto Serif JP",serif';
+    ctx.fillText(keys[i], lp.x, lp.y - 8);
+    ctx.fillStyle = '#f0d080';
+    ctx.font = 'bold 14px "Cormorant Garamond",serif';
+    ctx.fillText(score, lp.x, lp.y + 8);
   }
 }
 
@@ -601,6 +770,10 @@ function renderResult({name,astroData:a,themes,fortune}) {
     ['タロット',a.tarot],
   ];
   grid.innerHTML = items.map(([n,v])=>`<div class="oracle-data-item"><div class="oracle-data-name">${n}</div><div class="oracle-data-val">${v}</div></div>`).join('');
+
+  // レーダーチャート
+  const scores = calcScores(a);
+  requestAnimationFrame(()=>drawRadarChart('radar-canvas', scores));
 }
 
 // シェア
