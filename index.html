@@ -292,6 +292,7 @@
     </div>
 
     <button class="btn-share" id="btn-share">X にシェアする</button>
+    <button class="btn-again" id="btn-draft">鑑定書下書きをコピー（出品者用）</button>
     <button class="btn-again" id="btn-again">もう一度占う</button>
   </div>
 
@@ -782,6 +783,85 @@ document.getElementById('btn-share').addEventListener('click',()=>{
   const text = `【アカツキ鑑定】${name} さん\n\n${fortune.catchcopy}\n\n${a.zodiac} / LP${a.lp} / ${a.kyusei}\n\n5000年かけて培った7つの占術であなたのこれからを見る。\n#アカツキ #占い`;
   const url = `https://twitter.com/intent/tweet?text=${encodeURIComponent(text)}`;
   window.open(url,'_blank');
+});
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// 鑑定書下書き生成（出品者用ツール）
+// AIの下書きをそのまま納品しないこと。必ず自分の言葉で仕上げる。
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+function buildDraftMarkdown({name,birth,gender,themes,astroData:a,fortune}) {
+  const today = new Date();
+  const dateStr = `${today.getFullYear()}年${today.getMonth()+1}月${today.getDate()}日`;
+  const scores = calcScores(a);
+  const scoreLines = Object.entries(scores).map(([k,v])=>`| ${k} | ${v} |`).join('\n');
+  const themeBlocks = themes.map(t=>{
+    const draft = (fortune.themes && fortune.themes[t]) || '';
+    return `### ${t}\n\n${draft}\n\n> ✍️ 仕上げメモ：ご相談文の言葉を1つ引用し、具体的な行動アドバイスを1文足す`;
+  }).join('\n\n');
+  return `# ${name} 様 鑑定書
+
+鑑定日：${dateStr}
+お名前：${name} 様（${gender}）
+生年月日：${birth}
+鑑定テーマ：${themes.join('・')}
+
+---
+
+## 七つの占術データ
+
+| 占術 | 結果 |
+|---|---|
+| 数秘術 | ライフパス ${a.lp} ／ 個人年 ${a.py} |
+| 西洋占星術 | ${a.zodiac} |
+| 九星気学 | ${a.kyusei} |
+| 姓名判断 | 天格${a.seimai.tengaku}・人格${a.seimai.jinkaku}・地格${a.seimai.chikaku}・外格${a.seimai.gaikaku}・総格${a.seimai.sokaku} |
+| 四柱推命 | ${a.shichu.label} |
+| 宿曜占術 | ${a.shuku} |
+| タロット | ${a.tarot} |
+
+## 七星バランス
+
+| 占術 | スコア |
+|---|---|
+${scoreLines}
+
+---
+
+## 総合鑑定（下書き）
+
+**${fortune.catchcopy || ''}**
+
+${fortune.overall || ''}
+
+> ✍️ 仕上げメモ：冒頭にお客様への挨拶＋依頼内容の要約を自分の言葉で書く
+
+## テーマ別鑑定（下書き）
+
+${themeBlocks}
+
+---
+
+## むすび（手書き必須）
+
+> ✍️ ここはAIを使わず自分の言葉で：感謝＋一番伝えたい一言＋リピート案内
+
+---
+納品前チェック：[ ] 全文を自分の言葉で再編集した　[ ] お客様の相談文に答えている　[ ] 誤字脱字確認
+`;
+}
+
+document.getElementById('btn-draft').addEventListener('click',async function(){
+  const md = buildDraftMarkdown(resultData);
+  try {
+    await navigator.clipboard.writeText(md);
+    this.textContent = 'コピーしました ✓';
+  } catch(e) {
+    // クリップボードが使えない環境（http等）ではテキストを表示して手動コピー
+    const w = window.open('', '_blank');
+    w.document.write('<pre style="white-space:pre-wrap;font-family:monospace;padding:20px;">'+md.replace(/</g,'&lt;')+'</pre>');
+    this.textContent = '別タブに表示しました';
+  }
+  setTimeout(()=>{ this.textContent = '鑑定書下書きをコピー（出品者用）'; }, 2500);
 });
 
 // もう一度
