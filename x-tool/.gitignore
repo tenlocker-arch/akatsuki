@@ -1,0 +1,5 @@
+node_modules/
+# Chromeのログインセッション(Cookie等)— 絶対にコミットしない
+data/chrome-profile/
+# 文体ガイド(個人データなのでデフォルトでは除外)
+data/style.md
